@@ -1,13 +1,29 @@
-﻿#include <bangtal.h>
+#include <bangtal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
 
 SceneID scene1;
-ObjectID ob[12], startButton;
-int lcx[12] = {0,0,0,320,320,320,640,640,640,960,960,960};
-int lcy[12] = {0,240,480,0,240,480,0,240,480,0,240,480};
-int tmp, i, how;
+TimerID timer;
+ObjectID ob[12], startButton,init_ob[12];
+time_t start, end;
+int result;
+const char* image[12] = {
+	"Images\\최예나_001.png",
+	"Images\\최예나_002.png",
+	"Images\\최예나_003.png",
+	"Images\\최예나_004.png",
+	"Images\\최예나_005.png",
+	"Images\\최예나_006.png",
+	"Images\\최예나_007.png",
+	"Images\\최예나_008.png",
+	"Images\\최예나_009.png",
+	"Images\\최예나_010.png",
+	"Images\\최예나_011.png",
+	"Images\\최예나_012.png" };
+int lcx[12] = { 0,320,640,960,0,320,640,960,0,320,640,960 };
+int lcy[12] = { 480,480,480,480,240,240,240,240,0,0,0,0 };
+int tmp,mixcount;
 
 ObjectID createObject(const char* image, SceneID scene, int x, int y , bool shown) {
 
@@ -20,77 +36,118 @@ ObjectID createObject(const char* image, SceneID scene, int x, int y , bool show
 	return object;
 }
 
+int blank;
 
+void swap(int index) {
+	ObjectID t = ob[blank];
+	ob[blank] = ob[index];
+	ob[index] = t;
 
-void swap(int x, int y) {
-	tmp = x;
-	x = y;
-	y = tmp;
+	locateObject(ob[blank], scene1, lcx[blank], lcy[blank]);
+	locateObject(ob[index], scene1, lcx[index], lcy[index]);
+	
+	blank = index;
 }
 
-
-bool change(ObjectID object) {
-	for (i = 1; i < 12; i++) {
-		if (lcx[i] == lcx[0] + 320 && lcy[i] == lcy[0]) {
-			return(true);
-		}
-		else if (lcx[i] == lcx[0] - 320 && lcy[i] == lcy[0]) {
-			return(true);
-		}
-		else if (lcx[i] == lcx[0] && lcy[i] == lcy[0] + 240) {
-			return(true);
-		}
-		else if (lcx[i] == lcx[0] && lcy[i] == lcy[0] - 240) {
-			return(true);
-		}
+int ob_index(ObjectID object) {
+	for (int i = 0; i < 12; i++) {
+		if (ob[i] == object) return i;
 	}
-	return(false);
+	return -1;
+}
+
+bool Changeable(int index) {
+	if (lcx[index] == lcx[blank] + 320 && lcy[index] == lcy[blank]) {
+		return(true);
+	}
+	else if (lcx[index] == lcx[blank] - 320 && lcy[index] == lcy[blank]) {
+		return(true);
+	}
+	else if (lcx[index] == lcx[blank] && lcy[index] == lcy[blank] + 240) {
+		return(true);
+	}
+	else if (lcx[index] == lcx[blank] && lcy[index] == lcy[blank] - 240) {
+		return(true);
+	}
+	else {
+		return(false);
+	}
+}
+
+void mixmix() {
+	int index;
+	
+	do {
+		switch (rand() % 4) {
+		case 0: index = blank - 1; break;
+		case 1: index = blank + 1; break;
+		case 2: index = blank - 4; break;
+		case 3: index = blank + 4; break;
+		}
+	}while (!Changeable(index));
+	swap(index);
 }
 
 
+
+void timerCallback(TimerID timer) {
+	mixcount--;
+
+	if (mixcount > 0) {
+		mixmix();
+	}
+	
+	setTimer(timer, 0.1f);
+	startTimer(timer);
+}
+
+bool completed() {
+	for (int i = 0; i < 12; i++) {
+		if (init_ob[i] != ob[i]) return false;
+	}
+
+	return true;
+}
 
 
 void mouseCallback(ObjectID object, int x, int y, MouseAction action) {
 	if (object == startButton) {
+		start = time(NULL);
 		hideObject(startButton);
-		endGame();
+		mixcount = 10;
+
+		setTimer(timer, 0.1f);
+		startTimer(timer);
 	}
-	for (i = 1; i < 12; i++) {
-		if (object == ob[i]) {
-			if (change(ob[i]) == true) {
-				swap(lcx[0], lcx[i]);
-				swap(lcy[0], lcy[i]);
-				locateObject(ob[0], scene1, lcx[0], lcy[0]);
-				locateObject(ob[i], scene1, lcx[i], lcy[i]);
+	else {
+		int index = ob_index(object);
+		if (Changeable(index))
+			swap(index);
+		if (completed() == true) {
+			showMessage("예나 완성!");
+			end = time(NULL);
+			result = end - start;
+			showObject(startButton);
 			}
-		}
-		if (change(ob[i]) == false) {
-			showMessage("이것과는 바꿀 수 없어.");
-		}
 	}
 }
 
 int main() {
-	time_t start = time(NULL);
 	setMouseCallback(mouseCallback);
+	setTimerCallback(timerCallback);
 	scene1 = createScene("예나 맞추기", "Images\\배경.png");
-
-	ob[0] = createObject("Images\\빈칸.png", scene1, lcx[0], lcy[0], true);
-	ob[1] = createObject("Images\\최예나_002.png", scene1, lcx[1], lcy[1], true);
-	ob[2] = createObject("Images\\최예나_003.png", scene1, lcx[2], lcy[2], true);
-	ob[3] = createObject("Images\\최예나_004.png", scene1, lcx[3], lcy[3], true);
-	ob[4] = createObject("Images\\최예나_005.png", scene1, lcx[4], lcy[4], true);
-	ob[5] = createObject("Images\\최예나_006.png", scene1, lcx[5], lcy[5], true);
-	ob[6] = createObject("Images\\최예나_007.png", scene1, lcx[6], lcy[6], true);
-	ob[7] = createObject("Images\\최예나_008.png", scene1, lcx[7], lcy[7], true);
-	ob[8] = createObject("Images\\최예나_009.png", scene1, lcx[8], lcy[8], true);
-	ob[9] = createObject("Images\\최예나_010.png", scene1, lcx[9], lcy[9], true);
-	ob[10] = createObject("Images\\최예나_011.png", scene1, lcx[10], lcy[10], true);
-	ob[11] = createObject("Images\\최예나_012.png", scene1, lcx[11], lcy[11], true);
+	for (int i = 0; i < 12; i++) {
+		ob[i] = createObject(image[i]);
+		init_ob[i] = ob[i];
+		locateObject(ob[i], scene1, lcx[i], lcy[i]);
+		showObject(ob[i]);
+	}
+	blank = 0;
+	hideObject(ob[blank]);
 	
 	startButton = createObject("Images\\start.png", scene1, 540, 100, true);
 	scaleObject(startButton, 2.0f);
+	timer = createTimer(0.1f);
+	startTimer(timer);
 	startGame(scene1);	
-	time_t end = time(NULL);
-	how = difftime(end, start);
 }
